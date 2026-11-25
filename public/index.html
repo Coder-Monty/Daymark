@@ -1,0 +1,2164 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f5f7fb" />
+  <title>Daymark — Daily Progress</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2">
+  <link rel="manifest" href="/manifest.webmanifest?v=2">
+  <meta name="apple-mobile-web-app-title" content="Daymark">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-2: #f7f9fd;
+      --text: #172033;
+      --muted: #778198;
+      --line: #e7ebf3;
+      --accent: #6558e8;
+      --accent-soft: #efedff;
+      --green: #159b70;
+      --green-soft: #e8f8f1;
+      --red: #d85a6a;
+      --red-soft: #fff0f1;
+      --amber: #d9952c;
+      --shadow: 0 14px 40px rgba(28, 39, 74, .07);
+      --shadow-sm: 0 5px 18px rgba(28, 39, 74, .05);
+      --radius: 22px;
+    }
+
+    body.dark {
+      color-scheme: dark;
+      --bg: #0d1220;
+      --surface: #151d2e;
+      --surface-2: #1a2539;
+      --text: #edf1fb;
+      --muted: #9ca8bf;
+      --line: #29344a;
+      --accent: #988eff;
+      --accent-soft: #2a2850;
+      --green: #55d6a5;
+      --green-soft: #163c34;
+      --red: #ff8793;
+      --red-soft: #442832;
+      --amber: #f1bd63;
+      --shadow: 0 14px 40px rgba(0, 0, 0, .22);
+      --shadow-sm: 0 5px 18px rgba(0, 0, 0, .16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      transition: background .22s ease, color .22s ease;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      outline-offset: 2px;
+    }
+
+    .shell {
+      max-width: 1080px;
+      width: calc(100% - 40px);
+      margin: 0 auto;
+      padding: 12px 0 24px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 8px;
+      min-height: 42px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      display: block;
+      object-fit: contain;
+      flex: none;
+      filter: drop-shadow(0 5px 9px rgba(101, 88, 232, .16));
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand-title {
+      font: 700 17px 'Inter', sans-serif;
+      letter-spacing: -.5px;
+      line-height: 1.12;
+    }
+
+    .brand-sub {
+      color: var(--muted);
+      font-size: 10px;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .profile-chip {
+      display: none;
+      align-items: center;
+      gap: 7px;
+      max-width: 150px;
+      color: var(--muted);
+      font-size: 11px;
+      min-width: 0;
+    }
+
+    .profile-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      flex: none;
+    }
+
+    .profile-email {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 13px;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+      box-shadow: 0 6px 16px rgba(101, 88, 232, .2);
+    }
+
+    .btn.primary:hover {
+      filter: brightness(1.06);
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .btn.small {
+      padding: 8px 11px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      font-size: 17px;
+    }
+
+    .intro {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      padding: 9px 12px;
+      min-height: 54px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .intro-copy {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1.25px;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    h1 {
+      font: 700 clamp(20px, 2.8vw, 25px) 'Inter', sans-serif;
+      letter-spacing: -.9px;
+      margin: 0;
+      line-height: 1.12;
+    }
+
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 10px;
+      white-space: nowrap;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-2);
+      flex: none;
+    }
+
+    .sync-led {
+      height: 7px;
+      width: 7px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .sync-status.pending .sync-led {
+      background: var(--amber);
+    }
+
+    .sync-status.error .sync-led {
+      background: var(--red);
+    }
+
+    .stat-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      flex: none;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .stat-value {
+      font: 700 18px 'Inter', sans-serif;
+      margin-top: 3px;
+      letter-spacing: -.35px;
+      white-space: nowrap;
+    }
+
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0 18px;
+      align-items: stretch;
+    }
+
+    .top-info-card {
+      min-height: 158px;
+      padding: 17px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(125deg, var(--surface), var(--surface-2));
+    }
+
+    .top-info-card::after {
+      content: '';
+      position: absolute;
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      border: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
+      right: -44px;
+      bottom: -58px;
+      box-shadow: 0 0 0 15px color-mix(in srgb, var(--accent) 4%, transparent), 0 0 0 30px color-mix(in srgb, var(--accent) 3%, transparent);
+      pointer-events: none;
+    }
+
+    .top-info-card>* {
+      position: relative;
+      z-index: 1;
+    }
+
+    .streak-summary {
+      gap: 14px;
+    }
+
+    .streak-heading {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .streak-heading .panel-kicker {
+      margin-top: 2px;
+    }
+
+    .streak-pair {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: stretch;
+      min-width: 0;
+    }
+
+    .streak-metric {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+      padding: 1px 7px;
+    }
+
+    .streak-metric+.streak-metric {
+      border-left: 1px solid var(--line);
+      padding-left: 12px;
+    }
+
+    .streak-metric .stat-label {
+      white-space: nowrap;
+    }
+
+    .streak-metric .stat-value {
+      font-size: 17px;
+    }
+
+    .streak-label-icon {
+      margin-right: 3px;
+    }
+
+    .target-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .target-edit-btn {
+      flex: none;
+    }
+
+    .top-grid .panel-head {
+      margin-bottom: 9px;
+    }
+
+    .top-grid .clock-time {
+      font: 700 clamp(25px, 2.35vw, 34px) 'Inter', sans-serif;
+      letter-spacing: -.9px;
+      white-space: nowrap;
+    }
+
+    .top-grid .clock-date {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 6px;
+    }
+
+    .top-grid .countdown-value {
+      font: 700 clamp(20px, 2vw, 26px) 'Inter', sans-serif;
+      letter-spacing: -.45px;
+      margin: 12px 0 4px;
+      min-height: 30px;
+      overflow-wrap: anywhere;
+    }
+
+    .top-grid .countdown-caption {
+      color: var(--muted);
+      font-size: 10px;
+      min-height: 17px;
+    }
+
+    .top-grid .panel-title {
+      font: 700 14px 'Inter', sans-serif;
+      letter-spacing: -.15px;
+    }
+
+    .top-grid .panel-kicker {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .panel {
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 17px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 11px;
+    }
+
+    .panel-title {
+      font: 700 15px 'Inter', sans-serif;
+      letter-spacing: -.25px;
+    }
+
+    .panel-kicker {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .target-modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .target-modal-actions .primary {
+      margin-right: auto;
+    }
+
+    input[type="date"],
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+      min-width: 0;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      padding: 10px 11px;
+      font-size: 12px;
+    }
+
+    input[type="date"] {
+      flex: 1;
+    }
+
+    .calendar-panel {
+      max-width: 1080px;
+      width: 100%;
+      margin: 0 auto 12px;
+      padding: 15px;
+    }
+
+    .calendar-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .month-label {
+      min-width: 142px;
+      text-align: center;
+      font: 700 15px 'Inter', sans-serif;
+    }
+
+    .calendar-legend {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .legend {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .legend-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--line);
+    }
+
+    .legend-dot.done {
+      background: var(--green);
+    }
+
+    .legend-dot.today {
+      background: var(--accent);
+    }
+
+    .legend-dot.incomplete {
+      background: var(--red);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .weekday {
+      text-align: center;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 800;
+      padding: 6px 0;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+
+    .calendar-day {
+      position: relative;
+      min-height: 72px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface-2);
+      color: var(--text);
+      padding: 8px 8px 6px;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+
+    .calendar-day:not(:disabled):hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+    }
+
+    .calendar-day:disabled {
+      cursor: default;
+      opacity: .35;
+    }
+
+    .calendar-day.selected {
+      border: 1.5px solid var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .calendar-day.today:not(.selected) {
+      box-shadow: inset 0 0 0 1px var(--accent);
+    }
+
+    .calendar-day.complete {
+      background: var(--green-soft);
+      border-color: color-mix(in srgb, var(--green) 30%, var(--line));
+    }
+
+    .calendar-day.incomplete:not(.selected) {
+      background: var(--red-soft);
+      border-color: color-mix(in srgb, var(--red) 22%, var(--line));
+    }
+
+    .calendar-day.incomplete .day-status {
+      color: var(--red);
+    }
+
+    .calendar-day.incomplete.selected {
+      border: 1.5px solid var(--accent);
+      background: color-mix(in srgb, var(--red-soft) 68%, var(--accent-soft));
+    }
+
+    .calendar-day.complete.selected {
+      border: 1.5px solid var(--accent);
+      background: color-mix(in srgb, var(--green-soft) 60%, var(--accent-soft));
+    }
+
+    .calendar-day .day-number {
+      font: 700 12px 'Inter', sans-serif;
+    }
+
+    .calendar-day .day-status {
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      line-height: 1.2;
+      min-width: 0;
+    }
+
+    .calendar-day .day-status span:last-child {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .calendar-day.complete .day-status {
+      color: var(--green);
+    }
+
+    .calendar-day.today .day-number {
+      color: var(--accent);
+    }
+
+    .calendar-day .mini-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .calendar-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .checkpoint-panel {
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+
+    .checkpoint-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .checkpoint-date {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .readonly-pill {
+      color: var(--muted);
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .overall-checkpoint {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 11px 13px;
+      border-radius: 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      margin-bottom: 10px;
+    }
+
+    .overall-checkpoint.complete {
+      background: var(--green-soft);
+      border-color: color-mix(in srgb, var(--green) 25%, var(--line));
+    }
+
+    .checkpoint-check {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 21px;
+      height: 21px;
+      border: 2px solid var(--muted);
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      margin: 0;
+      flex: none;
+      background: var(--surface);
+    }
+
+    .checkpoint-check:checked {
+      border-color: var(--green);
+      background: var(--green);
+    }
+
+    .checkpoint-check:checked::after {
+      content: '✓';
+      color: white;
+      font-weight: 900;
+      font-size: 14px;
+    }
+
+    .checkpoint-check:disabled {
+      opacity: 1;
+      cursor: default;
+    }
+
+    .overall-title {
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .overall-subtitle {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .overall-status {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .overall-checkpoint.complete .overall-status {
+      color: var(--green);
+    }
+
+    .task-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 8px;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      padding: 10px 11px;
+      min-width: 0;
+      background: var(--surface);
+    }
+
+    .task-item.clickable {
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease, transform .15s ease;
+    }
+
+    .task-item.clickable:hover {
+      border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+      background: var(--surface-2);
+    }
+
+    .task-item.clickable:active {
+      transform: scale(.995);
+    }
+
+    .task-item.done .task-name {
+      color: var(--muted);
+      text-decoration: line-through;
+    }
+
+    .task-name {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .task-item input {
+      accent-color: var(--green);
+      width: 17px;
+      height: 17px;
+      flex: none;
+    }
+
+    .task-item input:disabled {
+      cursor: default;
+    }
+
+    .remove-task {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      font-size: 16px;
+      flex: none;
+    }
+
+    .remove-task:hover {
+      color: var(--red);
+      background: var(--red-soft);
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      padding: 23px 14px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .add-task-form {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .add-task-form[hidden] {
+      display: none;
+    }
+
+    .add-task-form input {
+      flex: 1;
+    }
+
+    .task-help {
+      color: var(--muted);
+      font-size: 10px;
+      margin: 8px 2px 0;
+      line-height: 1.5;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 10px;
+      padding: 17px 3px 0;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(5, 9, 20, .55);
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal {
+      width: min(100%, 410px);
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 25px;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, .25);
+      animation: modal-in .18s ease-out;
+    }
+
+    @keyframes modal-in {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(.99);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .modal h2 {
+      font: 700 22px 'Inter', sans-serif;
+      margin: 0 0 6px;
+    }
+
+    .modal-copy {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      margin-bottom: 19px;
+    }
+
+    .modal label {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      margin: 12px 0 6px;
+    }
+
+    .modal input {
+      width: 100%;
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .modal-actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 17px;
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 13px 0 10px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      height: 1px;
+      flex: 1;
+      background: var(--line);
+    }
+
+    .google-auth-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      background: var(--surface);
+    }
+
+    .google-auth-btn svg {
+      width: 17px;
+      height: 17px;
+      flex: none;
+    }
+
+    .modal-links {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 13px;
+    }
+
+    .text-btn {
+      border: 0;
+      padding: 3px 0;
+      background: none;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .modal-error {
+      color: var(--red);
+      min-height: 15px;
+      font-size: 11px;
+      margin-top: 9px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translate(-50%, 15px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 30;
+      background: var(--text);
+      color: var(--surface);
+      padding: 11px 15px;
+      border-radius: 12px;
+      font-size: 12px;
+      box-shadow: var(--shadow);
+      transition: opacity .2s ease, transform .2s ease;
+      max-width: calc(100% - 30px);
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 900px) {
+      .top-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .streak-summary {
+        grid-column: 1 / -1;
+        min-height: 112px;
+        display: grid;
+        grid-template-columns: minmax(145px, .8fr) minmax(0, 1.2fr);
+        align-items: center;
+        gap: 12px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .shell {
+        width: calc(100% - 24px);
+        padding-top: 10px;
+      }
+
+      .topbar {
+        align-items: center;
+        margin-bottom: 7px;
+        min-height: 36px;
+        gap: 7px;
+      }
+
+      .brand {
+        gap: 7px;
+      }
+
+      .brand-logo {
+        width: 36px;
+        height: 36px;
+      }
+
+      .brand-title {
+        font-size: 15px;
+      }
+
+      .brand-sub {
+        font-size: 8.5px;
+      }
+
+      .top-actions {
+        gap: 6px;
+      }
+
+      .top-actions .icon-btn {
+        width: 34px;
+        height: 34px;
+      }
+
+      .top-actions .btn:not(.icon-btn) {
+        padding: 8px 9px;
+        font-size: 10px;
+      }
+
+      .sync-status {
+        font-size: 8px;
+        padding: 6px 7px;
+        gap: 5px;
+      }
+
+      .profile-chip {
+        max-width: 80px;
+        font-size: 9px;
+        gap: 5px;
+      }
+
+      .intro {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 10px;
+        min-height: 48px;
+      }
+
+      .intro-copy {
+        gap: 7px;
+      }
+
+      .eyebrow {
+        font-size: 8px;
+        letter-spacing: 1px;
+      }
+
+      h1 {
+        font-size: 20px;
+      }
+
+      .sync-status {
+        margin-top: 0;
+        font-size: 9px;
+        padding: 6px 8px;
+      }
+
+      .stat-icon {
+        width: 27px;
+        height: 27px;
+        font-size: 13px;
+        border-radius: 9px;
+      }
+
+      .stat-label {
+        font-size: 9px;
+      }
+
+      .streak-metric {
+        padding: 1px 6px;
+      }
+
+      .streak-metric+.streak-metric {
+        padding-left: 9px;
+      }
+
+      .streak-metric .stat-value {
+        font-size: 16px;
+      }
+
+      .top-grid {
+        grid-template-columns: 1fr;
+        margin: 13px 0 16px;
+      }
+
+      .panel {
+        padding: 14px;
+        border-radius: 18px;
+      }
+
+      .top-info-card {
+        min-height: 145px;
+        padding: 16px;
+      }
+
+      .streak-summary {
+        grid-column: auto;
+        display: flex;
+        min-height: 145px;
+        gap: 14px;
+      }
+
+      .streak-pair {
+        flex: 1;
+      }
+
+      .top-grid .clock-time {
+        font-size: 30px;
+      }
+
+      .calendar-panel,
+      .checkpoint-panel {
+        padding: 14px;
+      }
+
+      .calendar-panel .panel-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .calendar-controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .month-label {
+        flex: 1;
+      }
+
+      .calendar-panel {
+        max-width: none;
+      }
+
+      .calendar-grid {
+        gap: 4px;
+      }
+
+      .calendar-day {
+        min-height: 58px;
+        border-radius: 9px;
+        padding: 6px 5px 5px;
+      }
+
+      .calendar-day .day-status {
+        font-size: 7.5px;
+        gap: 3px;
+      }
+
+      .calendar-day .day-number {
+        font-size: 12px;
+      }
+
+      .weekday {
+        font-size: 8px;
+        padding: 6px 0;
+      }
+
+      .calendar-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .checkpoint-top {
+        align-items: flex-start;
+      }
+
+      .task-list {
+        grid-template-columns: 1fr;
+      }
+
+      .footer {
+        flex-direction: column;
+      }
+
+      .overall-status {
+        font-size: 9px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="shell">
+    <header class="topbar" aria-label="Daymark header">
+      <div class="brand">
+        <img class="brand-logo" src="/daymark-logo.png" alt="Daymark logo" width="40" height="40">
+        <div class="brand-copy">
+          <div class="brand-title">Daymark</div>
+          <div class="brand-sub">Daily progress, made visible.</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="sync-status" id="syncStatus" role="status" aria-live="polite"
+          title="Your progress is saved on this device">
+          <span class="sync-led"></span><span id="syncText">Saved on this device</span>
+        </div>
+        <button class="btn icon-btn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>
+        <span class="profile-chip" id="profileChip"><span class="profile-dot"></span><span class="profile-email"
+            id="profileEmail"></span></span>
+        <button class="btn" id="accountBtn" type="button">Log in</button>
+        <button class="btn ghost" id="logoutBtn" type="button" hidden>Log out</button>
+      </div>
+    </header>
+
+    <section class="top-grid" aria-label="Time, target and streak overview">
+      <article class="panel top-info-card countdown-card">
+        <div class="target-head">
+          <div>
+            <div class="panel-title">Target countdown</div>
+            <div class="panel-kicker">Keep your goal close</div>
+          </div>
+          <button class="btn small target-edit-btn" id="targetEditBtn" type="button">✎ Edit</button>
+        </div>
+        <div class="countdown-value" id="countdownValue">Choose a date</div>
+        <div class="countdown-caption" id="countdownCaption">Set a target to start the countdown.</div>
+      </article>
+
+      <article class="panel top-info-card clock-card">
+        <div class="panel-head">
+          <div class="panel-title">Local time</div>
+          <div class="panel-kicker">Live clock</div>
+        </div>
+        <div class="clock-time" id="clock">--:--:--</div>
+        <div class="clock-date" id="clockDate">Loading date…</div>
+      </article>
+
+      <article class="panel top-info-card streak-summary" aria-label="Streak summary">
+        <div class="streak-heading">
+          <div class="stat-icon" aria-hidden="true">🔥</div>
+          <div>
+            <div class="panel-title">Streak</div>
+            <div class="panel-kicker">Your consistency</div>
+          </div>
+        </div>
+        <div class="streak-pair">
+          <div class="streak-metric">
+            <div class="stat-label">Current streak</div>
+            <div class="stat-value" id="currentStreak">0 days</div>
+          </div>
+          <div class="streak-metric">
+            <div class="stat-label"><span class="streak-label-icon" aria-hidden="true">🏆</span>Best streak</div>
+            <div class="stat-value" id="bestStreak">0 days</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel checkpoint-panel" id="checkpointPanel">
+      <div class="checkpoint-top">
+        <div>
+          <div class="panel-title" id="checkpointHeading">Today's checkpoint</div>
+          <div class="checkpoint-date" id="checkpointDate"></div>
+        </div>
+        <div class="readonly-pill" id="editModePill">Editable today</div>
+      </div>
+      <div class="overall-checkpoint" id="overallCheckpoint">
+        <input class="checkpoint-check" type="checkbox" id="overallCheck" disabled
+          aria-label="Overall daily checkpoint">
+        <div>
+          <div class="overall-title">Overall daily checkpoint</div>
+          <div class="overall-subtitle" id="overallSubtitle">Complete every task below to finish today's checkpoint.
+          </div>
+        </div>
+        <div class="overall-status" id="overallStatus">IN PROGRESS</div>
+      </div>
+      <div class="task-list" id="taskList"></div>
+      <form class="add-task-form" id="addTaskForm">
+        <input type="text" id="newTaskInput" maxlength="100" placeholder="Add a recurring daily task…"
+          autocomplete="off" aria-label="New daily task">
+        <button class="btn primary" type="submit">+ Add task</button>
+      </form>
+      <div class="task-help" id="taskHelp">Tasks you add become part of each daily checkpoint from today onward. Past
+        checkpoints stay read-only. Removing a task keeps its earlier history.</div>
+    </section>
+
+    <section class="panel calendar-panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Checkpoint calendar</div>
+          <div class="panel-kicker" style="margin-top:4px">Select any past day to review it. Only today can be changed.
+          </div>
+        </div>
+        <div class="calendar-controls">
+          <button class="btn small" id="prevMonthBtn" aria-label="Previous month">←</button>
+          <div class="month-label" id="monthLabel">Month Year</div>
+          <button class="btn small" id="nextMonthBtn" aria-label="Next month">→</button>
+        </div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+      <div class="calendar-footer">
+        <div class="calendar-legend"><span class="legend"><i class="legend-dot done"></i> Completed</span><span
+            class="legend"><i class="legend-dot today"></i> Today</span><span class="legend"><i
+              class="legend-dot incomplete"></i> Incomplete</span></div>
+        <div id="calendarHint">Tap a date to view its checkpoint.</div>
+      </div>
+    </section>
+
+    <footer class="footer"><span>Daymark · Progress is built one day at a time.</span></footer>
+  </main>
+
+  <div class="modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="modal">
+      <h2 id="authTitle">Welcome back</h2>
+      <div class="modal-copy" id="authCopy">Sign in with email and password, or continue with Google, to sync your tasks
+        and checkpoints across devices.</div>
+      <form id="authForm">
+        <label for="authEmail">Email address</label><input type="email" id="authEmail" autocomplete="email" required
+          placeholder="you@example.com">
+        <label for="authPassword">Password</label><input type="password" id="authPassword"
+          autocomplete="current-password" required minlength="6" placeholder="At least 6 characters">
+        <div class="modal-error" id="authError" role="status"></div>
+        <div class="modal-actions"><button class="btn primary" id="authSubmitBtn" type="submit">Sign in</button><button
+            class="btn" type="button" id="guestBtn">Continue as guest</button></div>
+      </form>
+      <div class="auth-divider"><span>OR</span></div>
+      <button class="btn google-auth-btn" id="googleSignInBtn" type="button" aria-label="Continue with Google">
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#EA4335"
+            d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+          <path fill="#4285F4"
+            d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.91c-.58 2.96-2.25 5.48-4.73 7.18l7.64 5.93c4.46-4.12 7.16-10.18 7.16-17.58z" />
+          <path fill="#FBBC05"
+            d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.75-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.88.93 7.56 2.56 10.78l7.97-6.19z" />
+          <path fill="#34A853"
+            d="M24 48c6.48 0 11.93-2.13 15.91-5.87l-7.64-5.93c-2.12 1.42-4.84 2.26-8.27 2.26-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+        </svg>
+        Continue with Google
+      </button>
+      <div class="modal-links"><button class="text-btn" id="switchAuthBtn" type="button">Create an
+          account</button><button class="text-btn" id="forgotPasswordBtn" type="button">Forgot password?</button></div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="targetModal" role="dialog" aria-modal="true" aria-labelledby="targetModalTitle">
+    <div class="modal">
+      <h2 id="targetModalTitle">Edit target date</h2>
+      <div class="modal-copy">Choose the date you want Daymark to count down to. Your target is saved with your tracker
+        data.</div>
+      <form id="targetForm">
+        <label for="targetDate">Target date</label>
+        <input type="date" id="targetDate" aria-label="Target date">
+        <div class="target-modal-actions">
+          <button class="btn primary" type="submit">Save target</button>
+          <button class="btn ghost" id="clearTargetBtn" type="button">Remove target</button>
+          <button class="btn" id="cancelTargetBtn" type="button">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    'use strict';
+
+    // IMPORTANT: Replace these placeholders with the config from your NEW Daymark Firebase project.
+    // Firebase Console → Project settings → General → Your apps → Daymark Web app.
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsaurTteF9-cgq6Nqs2lBKI9KHMI4x3HA",
+      authDomain: "daymark-2026.web.app",
+      projectId: "daymark-2026",
+      storageBucket: "daymark-2026.firebasestorage.app",
+      messagingSenderId: "372535916662",
+      appId: "1:372535916662:web:24726ceed663fa53248757"
+    };
+
+    function hasRealFirebaseConfig() {
+      return !!firebaseConfig.apiKey &&
+        !firebaseConfig.apiKey.startsWith('PASTE_') &&
+        !!firebaseConfig.projectId &&
+        firebaseConfig.projectId !== 'YOUR_DAYMARK_PROJECT_ID' &&
+        !!firebaseConfig.appId &&
+        !firebaseConfig.appId.startsWith('PASTE_');
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const GUEST_KEY = 'dsa-tracker:guest:v2';
+    const USER_KEY = (uid) => `dsa-tracker:user:${uid}:v2`;
+    const todayKey = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const dateFromKey = (key) => {
+      const [y, m, d] = key.split('-').map(Number);
+      return new Date(y, m - 1, d, 12, 0, 0, 0);
+    };
+    const addDays = (key, amount) => {
+      const d = dateFromKey(key);
+      d.setDate(d.getDate() + amount);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const clone = (value) => JSON.parse(JSON.stringify(value));
+    const emptyState = () => ({
+      version: 2,
+      tasks: [],
+      days: {},
+      settings: {
+        theme: { value: 'light', updatedAt: 0 },
+        targetDate: { value: '', updatedAt: 0 }
+      },
+    });
+
+    function normalizeState(raw) {
+      const base = emptyState();
+      if (!raw || typeof raw !== 'object') return base;
+      base.version = 2;
+      base.tasks = Array.isArray(raw.tasks) ? raw.tasks.filter(t => t && typeof t.id === 'string' && typeof t.text === 'string').map(t => ({
+        id: t.id, text: t.text, createdOn: t.createdOn || todayKey(), archivedOn: t.archivedOn || null, updatedAt: Number(t.updatedAt) || 0
+      })) : [];
+      if (raw.days && typeof raw.days === 'object') {
+        for (const [date, day] of Object.entries(raw.days)) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !day || typeof day !== 'object') continue;
+          base.days[date] = { tasks: {} };
+          if (day.tasks && typeof day.tasks === 'object') {
+            for (const [taskId, record] of Object.entries(day.tasks)) {
+              if (record && typeof record === 'object') base.days[date].tasks[taskId] = { done: !!record.done, updatedAt: Number(record.updatedAt) || 0 };
+              else base.days[date].tasks[taskId] = { done: !!record, updatedAt: 0 };
+            }
+          }
+        }
+      }
+      const sourceSettings = raw.settings || {};
+      for (const key of ['theme', 'targetDate']) {
+        const value = sourceSettings[key];
+        if (value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'value')) {
+          base.settings[key] = { value: value.value, updatedAt: Number(value.updatedAt) || 0 };
+        } else if (value !== undefined) {
+          base.settings[key] = { value, updatedAt: 0 };
+        }
+      }
+      return base;
+    }
+
+    function newest(a, b) { return (Number(a?.updatedAt) || 0) >= (Number(b?.updatedAt) || 0) ? a : b; }
+    function mergeStates(left, right) {
+      const a = normalizeState(left), b = normalizeState(right), out = emptyState();
+      const tasks = new Map();
+      [...a.tasks, ...b.tasks].forEach(task => {
+        const existing = tasks.get(task.id);
+        if (!existing || task.updatedAt >= existing.updatedAt) tasks.set(task.id, task);
+      });
+      out.tasks = [...tasks.values()];
+      for (const date of new Set([...Object.keys(a.days), ...Object.keys(b.days)])) {
+        out.days[date] = { tasks: {} };
+        const aa = a.days[date]?.tasks || {}, bb = b.days[date]?.tasks || {};
+        for (const id of new Set([...Object.keys(aa), ...Object.keys(bb)])) {
+          const x = aa[id], y = bb[id];
+          out.days[date].tasks[id] = x && y ? newest(x, y) : (x || y);
+        }
+      }
+      for (const key of ['theme', 'targetDate']) out.settings[key] = newest(a.settings[key], b.settings[key]);
+      return out;
+    }
+
+    function readLocal(key) {
+      try { return normalizeState(JSON.parse(localStorage.getItem(key) || 'null')); }
+      catch (error) { console.warn('Could not read local tracker data:', error); return emptyState(); }
+    }
+    function writeLocal() {
+      try { localStorage.setItem(activeStorageKey, JSON.stringify(state)); }
+      catch (error) { console.error('Local save failed:', error); setSync('error', 'Browser storage is full'); }
+    }
+
+    let state = readLocal(GUEST_KEY);
+    let activeStorageKey = GUEST_KEY;
+    let currentUser = null;
+    let firestore = null;
+    let auth = null;
+    let unsubscribeCloud = null;
+    let cloudTimer = null;
+    let cloudBusy = false;
+    let cloudAgain = false;
+    // True only when this device has local changes that still need uploading.
+    // Routine tab focus/online events and Firestore listener heartbeats do not
+    // start a write by themselves.
+    let cloudDirty = false;
+    let selectedDate = todayKey();
+    // Track the browser's local calendar date so the dashboard can roll over
+    // automatically at midnight or when the device date is changed manually.
+    let lastObservedDate = todayKey();
+    let viewMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let authMode = 'signin';
+    let toastTimer = null;
+
+    function setSync(kind, message) {
+      const el = $('syncStatus');
+      el.classList.toggle('pending', kind === 'pending');
+      el.classList.toggle('error', kind === 'error');
+      $('syncText').textContent = message;
+      el.title = currentUser
+        ? `Signed in as ${currentUser.email || 'your account'}. Account sync status.`
+        : 'Your progress is saved on this device. Log in to sync across devices.';
+      el.setAttribute('aria-label', message);
+    }
+    function renderAccountControls() {
+      const signedIn = !!currentUser;
+      $('accountBtn').hidden = signedIn;
+      $('logoutBtn').hidden = !signedIn;
+      $('profileChip').style.display = signedIn ? 'inline-flex' : 'none';
+      $('profileEmail').textContent = signedIn ? (currentUser.email || 'Account connected') : '';
+    }
+    function toast(message) {
+      const el = $('toast'); el.textContent = message; el.classList.add('show');
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+    function persist() {
+      writeLocal();
+      renderAll();
+      if (currentUser) scheduleCloudSave();
+      else setSync('local', 'Saved on this device');
+    }
+
+    // Upload only after an actual local change. Firestore still listens for
+    // changes made on another device, but opening/focusing the tab does not
+    // write the same document again.
+    function scheduleCloudSave() {
+      if (!currentUser || !firestore) return;
+      cloudDirty = true;
+      setSync('pending', 'Syncing account…');
+      clearTimeout(cloudTimer);
+      if (cloudBusy) {
+        cloudAgain = true;
+        return;
+      }
+      cloudTimer = setTimeout(syncCloudNow, 450);
+    }
+
+    async function syncCloudNow() {
+      if (!currentUser || !firestore || !cloudDirty) return;
+      if (cloudBusy) { cloudAgain = true; return; }
+
+      cloudBusy = true;
+      cloudAgain = false;
+      const uid = currentUser.uid;
+      const localSnapshot = clone(state);
+      // Changes made while this request is in flight will set this back to true.
+      cloudDirty = false;
+      try {
+        const ref = firestore.collection('users').doc(uid);
+        const merged = await firestore.runTransaction(async (tx) => {
+          const snap = await tx.get(ref);
+          const remote = snap.exists ? normalizeState(snap.data().tracker || snap.data()) : emptyState();
+          const combined = mergeStates(remote, localSnapshot);
+          // Avoid generating Firestore writes/snapshot events when the document
+          // already contains this exact state.
+          if (!same(remote, combined)) {
+            tx.set(ref, { tracker: combined, updatedAt: Date.now() }, { merge: true });
+          }
+          return combined;
+        });
+
+        if (currentUser?.uid === uid) {
+          state = mergeStates(state, merged);
+          writeLocal();
+          // If an edit occurred during the request, keep it queued for the next
+          // single follow-up upload; otherwise return to the steady synced state.
+          if (!same(state, merged)) cloudDirty = true;
+          if (cloudDirty) setSync('pending', 'Syncing account…');
+          else setSync('ok', 'Synced to your account');
+          renderAll();
+        }
+      } catch (error) {
+        console.error('Cloud sync failed:', error);
+        cloudDirty = true; // Retain the dirty flag for the next explicit retry.
+        setSync('error', 'Offline · saved on this device');
+      } finally {
+        cloudBusy = false;
+        if (cloudAgain && currentUser && cloudDirty) {
+          cloudAgain = false;
+          clearTimeout(cloudTimer);
+          cloudTimer = setTimeout(syncCloudNow, 450);
+        }
+      }
+    }
+
+    function attachCloudListener(user) {
+      if (unsubscribeCloud) unsubscribeCloud();
+      const ref = firestore.collection('users').doc(user.uid);
+      unsubscribeCloud = ref.onSnapshot((snap) => {
+        if (!currentUser || currentUser.uid !== user.uid) return;
+        const remote = snap.exists ? normalizeState(snap.data().tracker || snap.data()) : emptyState();
+        const merged = mergeStates(state, remote);
+        if (!same(merged, state)) {
+          state = merged;
+          writeLocal();
+          renderAll();
+        }
+        // If this device has local data not present in the remote document,
+        // queue one upload. Never queue duplicates while one is already pending.
+        if (!same(merged, remote) && !cloudDirty) scheduleCloudSave();
+        else if (!cloudDirty && !cloudBusy) setSync('ok', 'Synced to your account');
+      }, (error) => {
+        console.error('Cloud listener failed:', error);
+        setSync('error', 'Sync unavailable · local copy safe');
+      });
+    }
+
+    function taskIsActiveOn(task, date) {
+      return task.createdOn <= date && (!task.archivedOn || date < task.archivedOn);
+    }
+    function tasksForDate(date) { return state.tasks.filter(task => taskIsActiveOn(task, date)).sort((a, b) => a.createdOn.localeCompare(b.createdOn)); }
+    function isTaskDone(date, taskId) { return !!state.days[date]?.tasks?.[taskId]?.done; }
+    function checkpointForDate(date) {
+      const tasks = tasksForDate(date);
+      return { total: tasks.length, done: tasks.filter(task => isTaskDone(date, task.id)).length, complete: tasks.length > 0 && tasks.every(task => isTaskDone(date, task.id)) };
+    }
+    function streakStats() {
+      const today = todayKey();
+      const createdDates = state.tasks.map(task => task.createdOn).filter(Boolean).sort();
+      if (!createdDates.length) return { current: 0, best: 0 };
+      const first = createdDates[0];
+      let best = 0, run = 0;
+      for (let date = first; date <= today; date = addDays(date, 1)) {
+        // A streak day is earned only when every task active on that date is done.
+        if (checkpointForDate(date).complete) { run++; best = Math.max(best, run); }
+        else run = 0;
+      }
+      // Show an active current streak only after today's checkpoint is complete.
+      let current = 0;
+      if (checkpointForDate(today).complete) {
+        let cursor = today;
+        while (cursor >= first && checkpointForDate(cursor).complete) {
+          current++;
+          cursor = addDays(cursor, -1);
+        }
+      }
+      return { current, best };
+    }
+
+    function renderClock() {
+      const now = new Date();
+      $('clock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      $('clockDate').textContent = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+    function renderCountdown(syncInput = false) {
+      const targetInput = $('targetDate');
+      const target = state.settings.targetDate?.value || '';
+      // Do not reset the date picker on every one-second clock refresh; doing so
+      // can cancel an in-progress date selection in some browsers.
+      if (syncInput && document.activeElement !== targetInput) targetInput.value = target;
+
+      if (!target) {
+        $('countdownValue').textContent = 'Choose a date';
+        $('countdownCaption').textContent = 'Set a target to start the countdown.';
+        return;
+      }
+
+      const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(target);
+      if (!match) {
+        $('countdownValue').textContent = 'Choose a valid date';
+        $('countdownCaption').textContent = 'The saved target date is not valid.';
+        return;
+      }
+      const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+      const targetStart = new Date(year, month - 1, day, 0, 0, 0, 0);
+      if (targetStart.getFullYear() !== year || targetStart.getMonth() !== month - 1 || targetStart.getDate() !== day) {
+        $('countdownValue').textContent = 'Choose a valid date';
+        $('countdownCaption').textContent = 'The saved target date is not valid.';
+        return;
+      }
+      const today = todayKey();
+      const prettyDate = targetStart.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      if (target < today) {
+        $('countdownValue').textContent = '🎉 Target date reached!';
+        $('countdownCaption').textContent = prettyDate;
+        return;
+      }
+
+      // For a target set to today, count down to the end of today rather than
+      // incorrectly reporting that the target was reached at midnight.
+      const deadline = target === today
+        ? new Date(year, month - 1, day + 1, 0, 0, 0, 0)
+        : targetStart;
+      const diffMs = Math.max(0, deadline.getTime() - Date.now());
+      if (diffMs <= 0) {
+        $('countdownValue').textContent = '🎉 Target date reached!';
+        $('countdownCaption').textContent = prettyDate;
+        return;
+      }
+      const days = Math.floor(diffMs / 86400000);
+      const hours = Math.floor((diffMs % 86400000) / 3600000);
+      const minutes = Math.floor((diffMs % 3600000) / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      const time = `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+      $('countdownValue').textContent = target === today ? time : `${days}d ${time}`;
+      $('countdownCaption').textContent = target === today ? `Today · ${prettyDate}` : prettyDate;
+    }
+
+    function renderStats() {
+      const stats = streakStats();
+      $('currentStreak').textContent = `${stats.current} day${stats.current === 1 ? '' : 's'}`;
+      $('bestStreak').textContent = `${stats.best} day${stats.best === 1 ? '' : 's'}`;
+    }
+
+    function renderCalendar() {
+      const grid = $('calendarGrid'); grid.innerHTML = '';
+      ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+        const el = document.createElement('div'); el.className = 'weekday'; el.textContent = day; grid.appendChild(el);
+      });
+      const year = viewMonth.getFullYear(), month = viewMonth.getMonth();
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      $('monthLabel').textContent = viewMonth.toLocaleDateString([], { month: 'long', year: 'numeric' });
+      $('prevMonthBtn').disabled = year < 2000;
+      const currentMonth = new Date().getFullYear() === year && new Date().getMonth() === month;
+      $('nextMonthBtn').disabled = currentMonth || viewMonth > new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      for (let i = 0; i < firstDay; i++) { const blank = document.createElement('div'); grid.appendChild(blank); }
+      const today = todayKey();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isFuture = date > today;
+        // Future dates must not inherit recurring tasks yet. They remain visually
+        // blank until that date becomes today; past and current days keep history.
+        const info = isFuture
+          ? { total: 0, done: 0, complete: false }
+          : checkpointForDate(date);
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'calendar-day';
+        if (date === today) button.classList.add('today');
+        if (date === selectedDate) button.classList.add('selected');
+        if (!isFuture && info.complete) button.classList.add('complete');
+        else if (!isFuture && info.total > 0) button.classList.add('incomplete');
+        button.disabled = isFuture;
+        const number = document.createElement('span'); number.className = 'day-number'; number.textContent = day;
+        button.append(number);
+        // Future days show only their date number: no task count, dot, or red state.
+        if (!isFuture) {
+          const status = document.createElement('span'); status.className = 'day-status';
+          const dot = document.createElement('i'); dot.className = 'mini-dot';
+          const label = document.createElement('span');
+          label.textContent = !info.total ? '—' : (info.complete ? `${info.total} task${info.total === 1 ? '' : 's'} done` : `${info.done}/${info.total} tasks done`);
+          status.append(dot, label);
+          button.append(status);
+        }
+        if (!isFuture) button.addEventListener('click', () => { selectedDate = date; renderCheckpoint(); renderCalendar(); });
+        grid.appendChild(button);
+      }
+      $('calendarHint').textContent = selectedDate === today ? 'You are viewing today. Its tasks can be updated.' : `Viewing ${dateFromKey(selectedDate).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })} · historical checkpoints are locked.`;
+    }
+
+    function setTaskDone(date, taskId, done) {
+      if (date !== todayKey()) return;
+      if (!state.days[date]) state.days[date] = { tasks: {} };
+      state.days[date].tasks[taskId] = { done: !!done, updatedAt: Date.now() };
+      persist();
+    }
+    function archiveTask(taskId) {
+      const task = state.tasks.find(t => t.id === taskId); if (!task || selectedDate !== todayKey()) return;
+      task.archivedOn = todayKey(); task.updatedAt = Date.now();
+      persist(); toast('Task removed from today onward. Earlier history is preserved.');
+    }
+    function renderCheckpoint() {
+      const today = todayKey(), editable = selectedDate === today;
+      const dateText = dateFromKey(selectedDate).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      $('checkpointHeading').textContent = editable ? "Today's checkpoint" : 'Checkpoint review';
+      $('checkpointDate').textContent = dateText;
+      $('editModePill').textContent = editable ? 'Editable today' : 'Read-only · past date';
+      const activeTasks = tasksForDate(selectedDate);
+      const info = checkpointForDate(selectedDate);
+      const overall = $('overallCheckpoint');
+      overall.classList.toggle('complete', info.complete);
+      $('overallCheck').checked = info.complete;
+      $('overallStatus').textContent = info.complete ? 'COMPLETED' : (info.total ? 'IN PROGRESS' : 'NOT STARTED');
+      $('overallSubtitle').textContent = info.complete
+        ? `All ${info.total} tasks completed. This day counts toward your streak.`
+        : info.total ? `${info.done} of ${info.total} tasks completed. Finish all tasks to count this day.` : 'Add a recurring task to start tracking daily checkpoints.';
+
+      const list = $('taskList'); list.innerHTML = '';
+      if (!activeTasks.length) {
+        const empty = document.createElement('div'); empty.className = 'empty-state';
+        empty.textContent = editable ? 'No daily tasks yet. Add the habits or goals you want to complete every day.' : 'There were no active daily tasks on this date.';
+        list.appendChild(empty);
+      } else {
+        activeTasks.forEach(task => {
+          const done = isTaskDone(selectedDate, task.id);
+          const row = document.createElement('div'); row.className = `task-item${done ? ' done' : ''}${editable ? ' clickable' : ''}`;
+          if (editable) {
+            row.title = 'Click anywhere on this task to toggle it';
+            row.addEventListener('click', (event) => {
+              if (event.target === cb || event.target.closest('.remove-task')) return;
+              cb.checked = !cb.checked;
+              cb.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+          }
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = done; cb.disabled = !editable;
+          cb.setAttribute('aria-label', `Mark ${task.text} ${done ? 'incomplete' : 'complete'}`);
+          cb.addEventListener('change', () => setTaskDone(selectedDate, task.id, cb.checked));
+          const name = document.createElement('span'); name.className = 'task-name'; name.textContent = task.text;
+          row.append(cb, name);
+          if (editable) {
+            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'remove-task'; remove.title = 'Remove task from today onward'; remove.setAttribute('aria-label', `Remove ${task.text}`); remove.textContent = '×';
+            remove.addEventListener('click', () => archiveTask(task.id)); row.appendChild(remove);
+          }
+          list.appendChild(row);
+        });
+      }
+      $('addTaskForm').hidden = !editable;
+      $('taskHelp').textContent = editable
+        ? 'Tasks you add become part of each daily checkpoint from today onward. Past checkpoints stay read-only. Removing a task keeps its earlier history.'
+        : 'This is a read-only view. You can review what was completed, but previous dates cannot be edited.';
+    }
+
+    function renderTheme() {
+      const dark = state.settings.theme.value === 'dark';
+      document.body.classList.toggle('dark', dark);
+      $('themeBtn').textContent = dark ? '☀' : '☾';
+      $('themeBtn').title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    }
+    function renderAll() {
+      renderTheme(); renderCountdown(true); renderStats(); renderCheckpoint(); renderCalendar();
+    }
+
+    function refreshDateContext() {
+      const currentDate = todayKey();
+      if (currentDate === lastObservedDate) return false;
+
+      // The local date moved forward or backward (midnight, manual clock change,
+      // timezone change). Select the new local today and redraw all date-driven UI.
+      lastObservedDate = currentDate;
+      selectedDate = currentDate;
+      const now = new Date();
+      viewMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      renderClock();
+      renderAll();
+      return true;
+    }
+
+    $('themeBtn').addEventListener('click', () => {
+      state.settings.theme = { value: state.settings.theme.value === 'dark' ? 'light' : 'dark', updatedAt: Date.now() };
+      persist();
+    });
+    function openTargetModal() {
+      $('targetDate').value = state.settings.targetDate?.value || '';
+      $('targetModal').classList.add('show');
+      $('targetDate').focus();
+    }
+    function closeTargetModal() { $('targetModal').classList.remove('show'); }
+    function updateTargetDate(value) {
+      state.settings.targetDate = { value, updatedAt: Date.now() };
+      persist();
+    }
+    $('targetEditBtn').addEventListener('click', openTargetModal);
+    $('targetForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const value = $('targetDate').value || '';
+      updateTargetDate(value);
+      closeTargetModal();
+      toast(value ? 'Target date saved.' : 'Target countdown cleared.');
+    });
+    $('clearTargetBtn').addEventListener('click', () => {
+      updateTargetDate('');
+      closeTargetModal();
+      toast('Target countdown cleared.');
+    });
+    $('cancelTargetBtn').addEventListener('click', closeTargetModal);
+    $('targetModal').addEventListener('click', (event) => {
+      if (event.target === $('targetModal')) closeTargetModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeTargetModal();
+    });
+    $('addTaskForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const input = $('newTaskInput'), text = input.value.trim();
+      if (!text) { input.focus(); return; }
+      if (state.tasks.some(task => !task.archivedOn && task.text.toLowerCase() === text.toLowerCase())) { toast('That daily task already exists.'); return; }
+      state.tasks.push({ id: (crypto.randomUUID ? crypto.randomUUID() : `task-${Date.now()}-${Math.random().toString(16).slice(2)}`), text, createdOn: todayKey(), archivedOn: null, updatedAt: Date.now() });
+      input.value = ''; persist(); toast('Daily task added.');
+    });
+    $('prevMonthBtn').addEventListener('click', () => { viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1); renderCalendar(); });
+    $('nextMonthBtn').addEventListener('click', () => { const next = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1); const current = new Date(new Date().getFullYear(), new Date().getMonth(), 1); if (next <= current) { viewMonth = next; renderCalendar(); } });
+
+    // Email/password auth is deliberately separate from the old Google popup/redirect flow.
+    function openAuth() { $('authModal').classList.add('show'); $('authError').textContent = ''; $('authEmail').focus(); }
+    function closeAuth() { $('authModal').classList.remove('show'); }
+    function setAuthMode(mode) {
+      authMode = mode;
+      const signup = mode === 'signup';
+      $('authTitle').textContent = signup ? 'Create your account' : 'Welcome back';
+      $('authCopy').textContent = signup ? 'Create an account to keep your tracker synced across devices. This browser’s guest data will be merged into the new account.' : 'Sign in with email and password, or continue with Google, to sync your tasks and checkpoints across devices.';
+      $('authSubmitBtn').textContent = signup ? 'Create account' : 'Sign in';
+      $('switchAuthBtn').textContent = signup ? 'Already have an account? Sign in' : 'Create an account';
+      $('forgotPasswordBtn').hidden = signup;
+      $('authPassword').autocomplete = signup ? 'new-password' : 'current-password';
+      $('authError').textContent = '';
+    }
+    $('switchAuthBtn').addEventListener('click', () => setAuthMode(authMode === 'signin' ? 'signup' : 'signin'));
+    $('guestBtn').addEventListener('click', closeAuth);
+    $('authModal').addEventListener('click', (event) => { if (event.target === $('authModal')) closeAuth(); });
+    $('authForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = $('authEmail').value.trim(), password = $('authPassword').value;
+      $('authError').textContent = '';
+      $('authSubmitBtn').disabled = true;
+      try {
+        if (!auth) throw new Error('Account service is not available. Check the Firebase setup in README.md.');
+        if (authMode === 'signup') await auth.createUserWithEmailAndPassword(email, password);
+        else await auth.signInWithEmailAndPassword(email, password);
+        closeAuth(); toast('Account connected. Sync is starting…');
+      } catch (error) {
+        console.error('Authentication failed:', error);
+        const messages = {
+          'auth/email-already-in-use': 'An account already exists for this email. Sign in instead.',
+          'auth/invalid-email': 'Enter a valid email address.',
+          'auth/weak-password': 'Use a password with at least 6 characters.',
+          'auth/user-not-found': 'No account was found for this email. Create one first.',
+          'auth/wrong-password': 'Incorrect password. Try again or reset it.',
+          'auth/invalid-credential': 'Email or password is incorrect.',
+          'auth/too-many-requests': 'Too many attempts. Try again later.',
+          'auth/network-request-failed': 'Network error. Check your internet connection.',
+          'auth/operation-not-allowed': 'Email/password sign-in is disabled. Enable it in Firebase Authentication settings.'
+        };
+        $('authError').textContent = messages[error.code] || error.message || 'Could not sign in. Check the Firebase setup.';
+      } finally { $('authSubmitBtn').disabled = false; }
+    });
+    $('googleSignInBtn').addEventListener('click', async () => {
+      $('authError').textContent = '';
+      $('googleSignInBtn').disabled = true;
+      try {
+        if (!auth) throw new Error('Add your new Daymark Firebase web app config first, then enable Google sign-in in Firebase Authentication.');
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (mobile) {
+          await auth.signInWithRedirect(provider);
+        } else {
+          await auth.signInWithPopup(provider);
+          closeAuth();
+          toast('Google account connected. Sync is starting…');
+        }
+      } catch (error) {
+        console.error('Google sign-in failed:', error);
+        const messages = {
+          'auth/operation-not-allowed': 'Google sign-in is disabled. Enable Google in Firebase Authentication → Sign-in method.',
+          'auth/unauthorized-domain': 'This website domain is not authorized. Add it under Firebase Authentication → Settings → Authorized domains.',
+          'auth/popup-blocked': 'Your browser blocked the sign-in popup. Allow popups or try again.',
+          'auth/popup-closed-by-user': 'The Google sign-in window was closed before finishing.',
+          'auth/account-exists-with-different-credential': 'An account already exists with this email using another sign-in method. Sign in with that method first, then link Google in account settings.',
+          'auth/network-request-failed': 'Network error. Check your internet connection.'
+        };
+        $('authError').textContent = messages[error.code] || error.message || 'Google sign-in could not be completed.';
+      } finally {
+        $('googleSignInBtn').disabled = false;
+      }
+    });
+
+    $('forgotPasswordBtn').addEventListener('click', async () => {
+      const email = $('authEmail').value.trim();
+      if (!email) { $('authError').textContent = 'Enter your email address first.'; $('authEmail').focus(); return; }
+      try { await auth.sendPasswordResetEmail(email); $('authError').textContent = 'Password reset email sent. Check your inbox.'; }
+      catch (error) { $('authError').textContent = error.message || 'Could not send the reset email.'; }
+    });
+    $('accountBtn').addEventListener('click', () => {
+      openAuth();
+      setAuthMode('signin');
+    });
+    $('logoutBtn').addEventListener('click', async () => {
+      if (!auth || !currentUser) return;
+      if (!confirm('Log out of Daymark? Your account data will remain saved online.')) return;
+      try { await auth.signOut(); toast('Logged out. Your account data remains saved online.'); }
+      catch (error) { toast('Could not log out. Please try again.'); console.error(error); }
+    });
+
+    async function bootFirebase() {
+      try {
+        if (!window.firebase) throw new Error('Firebase SDK did not load.');
+        if (!hasRealFirebaseConfig()) throw new Error('Add your new Daymark Firebase web app config in index.html. Guest mode remains available until setup is complete.');
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        auth = firebase.auth(); firestore = firebase.firestore();
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        try { await auth.getRedirectResult(); }
+        catch (error) {
+          console.error('Google redirect sign-in failed:', error);
+          const redirectMessages = {
+            'auth/unauthorized-domain': 'Add this website to Firebase Authentication → Settings → Authorized domains.',
+            'auth/operation-not-allowed': 'Enable Google sign-in in Firebase Authentication → Sign-in method.'
+          };
+          $('authError').textContent = redirectMessages[error.code] || error.message || 'Google sign-in could not be completed.';
+        }
+        auth.onAuthStateChanged(async (user) => {
+          if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+          clearTimeout(cloudTimer);
+          currentUser = user || null;
+          renderAccountControls();
+          if (user) {
+            activeStorageKey = USER_KEY(user.uid);
+            // Preserve guest work while adding any data already stored for this account.
+            const guest = readLocal(GUEST_KEY);
+            const cachedAccount = readLocal(activeStorageKey);
+            state = mergeStates(cachedAccount, guest);
+            writeLocal();
+            setSync('ok', 'Account connected');
+            renderAll();
+            attachCloudListener(user);
+            // Upload guest/cached data only when it differs from the locally
+            // cached account state. Otherwise the snapshot listener simply
+            // observes remote updates without writing anything.
+            if (!same(state, cachedAccount)) scheduleCloudSave();
+            else setSync('ok', 'Synced to your account');
+          } else {
+            activeStorageKey = GUEST_KEY;
+            state = readLocal(GUEST_KEY);
+            setSync('local', 'Saved on this device');
+            renderAll();
+          }
+        });
+      } catch (error) {
+        console.error('Firebase initialization failed:', error);
+        auth = null; firestore = null;
+        currentUser = null;
+        renderAccountControls();
+        $('syncStatus').title = 'Account sync needs Firebase setup. Guest data remains saved on this device.';
+        setSync('error', 'Guest mode · account setup needed');
+      }
+    }
+
+    // A light migration from the previous tracker's localStorage keys.
+    function migrateLegacyDataOnce() {
+      if (localStorage.getItem('dsa-tracker:migrated:v2')) return;
+      try {
+        const legacyTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+        const legacyAttendance = Object.keys(localStorage).filter(k => k.startsWith('att-'));
+        const now = Date.now();
+        if (Array.isArray(legacyTasks) && legacyTasks.length) {
+          legacyTasks.forEach((old, index) => {
+            if (!old?.text || state.tasks.some(t => t.text === old.text)) return;
+            state.tasks.push({ id: `legacy-${index}-${now}`, text: String(old.text), createdOn: todayKey(), archivedOn: null, updatedAt: now });
+            if (old.done) {
+              const id = state.tasks[state.tasks.length - 1].id;
+              if (!state.days[todayKey()]) state.days[todayKey()] = { tasks: {} };
+              state.days[todayKey()].tasks[id] = { done: true, updatedAt: now };
+            }
+          });
+        }
+        const oldTarget = localStorage.getItem('targetDate');
+        if (oldTarget && !state.settings.targetDate.value) state.settings.targetDate = { value: oldTarget, updatedAt: now };
+        const oldTheme = localStorage.getItem('theme');
+        if (oldTheme === 'dark') state.settings.theme = { value: 'dark', updatedAt: now };
+        if (legacyAttendance.length && !state.tasks.length) {
+          // The old attendance marks had no task-level history, so they are not
+          // converted into completed checkpoints; this avoids inventing data.
+        }
+        localStorage.setItem('dsa-tracker:migrated:v2', '1');
+        writeLocal();
+      } catch (error) { console.warn('Legacy data migration skipped:', error); }
+    }
+
+    window.addEventListener('online', () => {
+      // Retry only if a real change was left unsynced while offline.
+      if (currentUser && cloudDirty) scheduleCloudSave();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refreshDateContext();
+        // No sync on focus alone. An actual pending edit will retry on online
+        // or through its already queued change-based save.
+        if (currentUser && cloudDirty && navigator.onLine) scheduleCloudSave();
+      }
+    });
+    window.addEventListener('focus', refreshDateContext);
+
+    migrateLegacyDataOnce();
+    selectedDate = todayKey();
+    lastObservedDate = selectedDate;
+    renderAll();
+    renderClock();
+    setInterval(() => {
+      refreshDateContext();
+      renderClock();
+      renderCountdown();
+    }, 1000);
+    renderAccountControls();
+    bootFirebase();
+  </script>
+</body>
+
+</html>
