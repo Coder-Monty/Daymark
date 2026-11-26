@@ -201,6 +201,56 @@
       background: transparent;
     }
 
+    .btn.danger-outline {
+      color: var(--red);
+      border-color: color-mix(in srgb, var(--red) 45%, var(--line));
+      background: transparent;
+    }
+
+    .btn.danger-outline:hover {
+      background: var(--red-soft);
+      border-color: var(--red);
+    }
+
+    .btn.danger-solid {
+      color: #fff;
+      border-color: var(--red);
+      background: var(--red);
+    }
+
+    .btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .settings-card {
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 14px;
+      margin-top: 12px;
+      background: var(--surface-2);
+    }
+
+    .settings-card h3 {
+      margin: 0 0 6px;
+      font-size: 13px;
+    }
+
+    .settings-card p,
+    .settings-note {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .settings-note {
+      margin-top: 12px;
+    }
+
+    .modal-error:empty { display: none; }
+
     .btn.small {
       padding: 8px 11px;
       border-radius: 10px;
@@ -1283,6 +1333,7 @@
           <span class="sync-led"></span><span id="syncText">Saved on this device</span>
         </div>
         <button class="btn icon-btn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button>
+        <button class="btn small" id="settingsBtn" type="button" aria-label="Open account and data settings">Settings</button>
         <span class="profile-chip" id="profileChip"><span class="profile-dot"></span><span class="profile-email"
             id="profileEmail"></span></span>
         <button class="btn" id="accountBtn" type="button">Log in</button>
@@ -1434,6 +1485,63 @@
       </form>
     </div>
   </div>
+  <div class="modal-backdrop" id="accountSettingsModal" role="dialog" aria-modal="true" aria-labelledby="accountSettingsTitle">
+    <div class="modal">
+      <h2 id="accountSettingsTitle">Account &amp; data</h2>
+      <div class="modal-copy" id="accountSettingsStatus">Manage the data saved by Daymark on this device and in your account.</div>
+      <div class="settings-card">
+        <h3>Reset my data</h3>
+        <p>Clear your Daymark tasks, checkpoints, streak history, target date and local tracker data. Your login and account will stay active.</p>
+        <button class="btn danger-outline" id="openResetConfirmBtn" type="button">Reset my data</button>
+      </div>
+      <div class="settings-card">
+        <h3>Delete my account</h3>
+        <p>Permanently remove your Daymark account and its tracker data. This action cannot be undone.</p>
+        <button class="btn danger-outline" id="openDeleteConfirmBtn" type="button">Delete my account</button>
+        <p class="settings-note" id="deleteGuestNote" hidden>Sign in to an account before requesting account deletion. Guest mode has no Daymark account to delete.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="closeAccountSettingsBtn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="resetConfirmModal" role="dialog" aria-modal="true" aria-labelledby="resetConfirmTitle">
+    <div class="modal">
+      <h2 id="resetConfirmTitle">Reset all Daymark data?</h2>
+      <div class="modal-copy">This clears your tasks, daily checkpoints, calendar history, streaks and target date. Your account and sign-in method will remain unchanged. This cannot be undone.</div>
+      <form id="resetConfirmForm">
+        <label for="resetConfirmWord">Type RESET to confirm</label>
+        <input id="resetConfirmWord" type="text" autocomplete="off" spellcheck="false" placeholder="RESET" required>
+        <div class="modal-error" id="resetConfirmError" role="alert"></div>
+        <div class="modal-actions">
+          <button class="btn danger-solid" id="confirmResetBtn" type="submit">Reset my data</button>
+          <button class="btn" id="cancelResetBtn" type="button">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="deleteConfirmModal" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle">
+    <div class="modal">
+      <h2 id="deleteConfirmTitle">Delete your account permanently?</h2>
+      <div class="modal-copy">Your Daymark account and tracker document will be deleted. You will be signed out and will not be able to recover this data. You may need to verify your identity again before deletion.</div>
+      <form id="deleteConfirmForm">
+        <label for="deleteConfirmWord">Type DELETE to confirm</label>
+        <input id="deleteConfirmWord" type="text" autocomplete="off" spellcheck="false" placeholder="DELETE" required>
+        <div id="deletePasswordWrap">
+          <label for="deleteAccountPassword">Confirm your password</label>
+          <input id="deleteAccountPassword" type="password" autocomplete="current-password" placeholder="Your current password">
+        </div>
+        <div class="modal-error" id="deleteConfirmError" role="alert"></div>
+        <div class="modal-actions">
+          <button class="btn danger-solid" id="confirmDeleteAccountBtn" type="submit">Permanently delete account</button>
+          <button class="btn" id="cancelDeleteAccountBtn" type="button">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status"></div>
 
   <script>
@@ -1479,6 +1587,7 @@
     const clone = (value) => JSON.parse(JSON.stringify(value));
     const emptyState = () => ({
       version: 2,
+      resetAt: 0,
       tasks: [],
       days: {},
       settings: {
@@ -1491,6 +1600,7 @@
       const base = emptyState();
       if (!raw || typeof raw !== 'object') return base;
       base.version = 2;
+      base.resetAt = Number(raw.resetAt) || 0;
       base.tasks = Array.isArray(raw.tasks) ? raw.tasks.filter(t => t && typeof t.id === 'string' && typeof t.text === 'string').map(t => ({
         id: t.id, text: t.text, createdOn: t.createdOn || todayKey(), archivedOn: t.archivedOn || null, updatedAt: Number(t.updatedAt) || 0
       })) : [];
@@ -1520,7 +1630,12 @@
 
     function newest(a, b) { return (Number(a?.updatedAt) || 0) >= (Number(b?.updatedAt) || 0) ? a : b; }
     function mergeStates(left, right) {
-      const a = normalizeState(left), b = normalizeState(right), out = emptyState();
+      const a = normalizeState(left), b = normalizeState(right);
+      // A newer explicit reset wins over cached state from another device.
+      if (a.resetAt > b.resetAt) return a;
+      if (b.resetAt > a.resetAt) return b;
+      const out = emptyState();
+      out.resetAt = Math.max(a.resetAt, b.resetAt);
       const tasks = new Map();
       [...a.tasks, ...b.tasks].forEach(task => {
         const existing = tasks.get(task.id);
@@ -1561,6 +1676,8 @@
     // Routine tab focus/online events and Firestore listener heartbeats do not
     // start a write by themselves.
     let cloudDirty = false;
+    let accountActionBusy = false;
+    const PENDING_DELETE_KEY = 'daymark:pending-account-deletion';
     let selectedDate = todayKey();
     // Track the browser's local calendar date so the dashboard can roll over
     // automatically at midnight or when the device date is changed manually.
@@ -1585,12 +1702,20 @@
       $('logoutBtn').hidden = !signedIn;
       $('profileChip').style.display = signedIn ? 'inline-flex' : 'none';
       $('profileEmail').textContent = signedIn ? (currentUser.email || 'Account connected') : '';
+      if ($('accountSettingsModal').classList.contains('show')) {
+        $('accountSettingsStatus').textContent = signedIn
+          ? `Signed in as ${currentUser.email || 'your account'}. Choose one of the separate data actions below.`
+          : 'Guest mode: reset clears tracker data saved in this browser. Sign in to delete an account.';
+        $('openDeleteConfirmBtn').disabled = !signedIn;
+        $('deleteGuestNote').hidden = signedIn;
+      }
     }
     function toast(message) {
       const el = $('toast'); el.textContent = message; el.classList.add('show');
       clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
     }
     function persist() {
+      if (accountActionBusy) return;
       writeLocal();
       renderAll();
       if (currentUser) scheduleCloudSave();
@@ -1601,7 +1726,7 @@
     // changes made on another device, but opening/focusing the tab does not
     // write the same document again.
     function scheduleCloudSave() {
-      if (!currentUser || !firestore) return;
+      if (accountActionBusy || !currentUser || !firestore) return;
       cloudDirty = true;
       setSync('pending', 'Syncing account…');
       clearTimeout(cloudTimer);
@@ -1626,6 +1751,9 @@
         const ref = firestore.collection('users').doc(uid);
         const merged = await firestore.runTransaction(async (tx) => {
           const snap = await tx.get(ref);
+          if (snap.exists && snap.data().accountDeleted === true) {
+            throw new Error('This account is being deleted. Sign in again only if the deletion was cancelled.');
+          }
           const remote = snap.exists ? normalizeState(snap.data().tracker || snap.data()) : emptyState();
           const combined = mergeStates(remote, localSnapshot);
           // Avoid generating Firestore writes/snapshot events when the document
@@ -1664,7 +1792,19 @@
       if (unsubscribeCloud) unsubscribeCloud();
       const ref = firestore.collection('users').doc(user.uid);
       unsubscribeCloud = ref.onSnapshot((snap) => {
-        if (!currentUser || currentUser.uid !== user.uid) return;
+        if (accountActionBusy || !currentUser || currentUser.uid !== user.uid) return;
+        if (snap.exists && snap.data().accountDeleted === true) {
+          // A deletion marker tells other signed-in devices to discard their
+          // cached copy and sign out instead of resurrecting the deleted data.
+          clearLocalTrackerCopies(user.uid);
+          state = emptyState();
+          activeStorageKey = GUEST_KEY;
+          writeLocal();
+          renderAll();
+          setSync('local', 'Account deleted');
+          if (auth) auth.signOut().catch(error => console.warn('Could not sign out deleted account on this device:', error));
+          return;
+        }
         const remote = snap.exists ? normalizeState(snap.data().tracker || snap.data()) : emptyState();
         const merged = mergeStates(state, remote);
         if (!same(merged, state)) {
@@ -1944,7 +2084,7 @@
       if (event.target === $('targetModal')) closeTargetModal();
     });
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') closeTargetModal();
+      if (event.key === 'Escape') { closeTargetModal(); closeAccountSettings(); closeResetConfirm(); closeDeleteConfirm(); }
     });
     $('addTaskForm').addEventListener('submit', (event) => {
       event.preventDefault();
@@ -1956,6 +2096,255 @@
     });
     $('prevMonthBtn').addEventListener('click', () => { viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1); renderCalendar(); });
     $('nextMonthBtn').addEventListener('click', () => { const next = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1); const current = new Date(new Date().getFullYear(), new Date().getMonth(), 1); if (next <= current) { viewMonth = next; renderCalendar(); } });
+
+    function openAccountSettings() {
+      const signedIn = !!currentUser;
+      $('accountSettingsStatus').textContent = signedIn
+        ? `Signed in as ${currentUser.email || 'your account'}. Choose one of the separate data actions below.`
+        : 'Guest mode: reset clears tracker data saved in this browser. Sign in to delete an account.';
+      $('openDeleteConfirmBtn').disabled = !signedIn;
+      $('deleteGuestNote').hidden = signedIn;
+      $('accountSettingsModal').classList.add('show');
+    }
+
+    function closeAccountSettings() { $('accountSettingsModal').classList.remove('show'); }
+    function closeResetConfirm() { $('resetConfirmModal').classList.remove('show'); }
+    function closeDeleteConfirm() { $('deleteConfirmModal').classList.remove('show'); }
+
+    function clearLegacyTrackerData() {
+      // Remove only known legacy tracker keys; do not clear Firebase Auth persistence.
+      for (const key of Object.keys(localStorage)) {
+        if (key === 'tasks' || key === 'targetDate' || key === 'theme' || key.startsWith('att-')) {
+          localStorage.removeItem(key);
+        }
+      }
+      localStorage.setItem('dsa-tracker:migrated:v2', '1');
+    }
+
+    async function waitForCloudIdle() {
+      const started = Date.now();
+      while (cloudBusy && Date.now() - started < 15000) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      if (cloudBusy) throw new Error('A cloud save is still running. Please try again in a moment.');
+    }
+
+    function stopCloudWork() {
+      clearTimeout(cloudTimer);
+      cloudDirty = false;
+      cloudAgain = false;
+      if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
+    }
+
+    function clearLocalTrackerCopies(uid) {
+      if (uid) localStorage.removeItem(USER_KEY(uid));
+      localStorage.removeItem(GUEST_KEY);
+      clearLegacyTrackerData();
+    }
+
+    async function resetTrackerData() {
+      if (accountActionBusy) return;
+      const user = currentUser;
+      const uid = user?.uid || null;
+      const hadPendingCloudChanges = cloudDirty;
+      accountActionBusy = true;
+      $('confirmResetBtn').disabled = true;
+      $('confirmResetBtn').textContent = 'Resetting…';
+      $('resetConfirmError').textContent = '';
+      try {
+        await waitForCloudIdle();
+        stopCloudWork();
+        const resetTime = Date.now();
+        if (uid) {
+          if (!firestore) throw new Error('Cloud data service is unavailable. Your data has not been reset.');
+          // Keep a reset generation in the account document so other signed-in
+          // devices discard stale local copies instead of uploading them again.
+          const resetState = emptyState();
+          resetState.resetAt = resetTime;
+          await firestore.collection('users').doc(uid).set({ tracker: resetState, resetAt: resetTime, updatedAt: resetTime });
+        }
+        clearLocalTrackerCopies(uid);
+        state = emptyState();
+        if (uid) state.resetAt = resetTime;
+        activeStorageKey = uid ? USER_KEY(uid) : GUEST_KEY;
+        writeLocal();
+        selectedDate = todayKey();
+        lastObservedDate = selectedDate;
+        viewMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        if (user && currentUser?.uid === uid) attachCloudListener(user);
+        renderAll();
+        setSync(user ? 'ok' : 'local', user ? 'Account data reset' : 'Saved on this device');
+        closeResetConfirm();
+        closeAccountSettings();
+        toast(user ? 'Your Daymark data was reset. Your account is still active.' : 'Daymark data on this device was reset.');
+      } catch (error) {
+        console.error('Data reset failed:', error);
+        if (user && currentUser?.uid === uid && !unsubscribeCloud) attachCloudListener(user);
+        if (user && currentUser?.uid === uid && hadPendingCloudChanges) cloudDirty = true;
+        $('resetConfirmError').textContent = error.message || 'Could not reset your data. Please try again.';
+      } finally {
+        accountActionBusy = false;
+        if (cloudDirty && currentUser && navigator.onLine) scheduleCloudSave();
+        $('confirmResetBtn').disabled = false;
+        $('confirmResetBtn').textContent = 'Reset my data';
+      }
+    }
+
+    async function completeAccountDeletion(user) {
+      if (!user || !firestore) throw new Error('Your account or cloud data service is unavailable.');
+      const uid = user.uid;
+      const hadPendingCloudChanges = cloudDirty;
+      const previousTrackerState = clone(state);
+      let deletionMarkerWritten = false;
+      accountActionBusy = true;
+      $('confirmDeleteAccountBtn').disabled = true;
+      $('confirmDeleteAccountBtn').textContent = 'Deleting account…';
+      try {
+        await waitForCloudIdle();
+        stopCloudWork();
+        // Replace personal tracker data with a minimal tombstone before deleting
+        // Auth. Other signed-in devices receive it and clear their cached copies.
+        const deletedAt = Date.now();
+        await firestore.collection('users').doc(uid).set({
+          accountDeleted: true,
+          deletedAt,
+          tracker: emptyState(),
+          updatedAt: deletedAt
+        });
+        deletionMarkerWritten = true;
+        try {
+          await user.delete();
+        } catch (authError) {
+          // Restore the tracker if Authentication deletion fails, so a failed
+          // attempt does not strand the user without their existing data.
+          const restoredAt = Date.now();
+          await firestore.collection('users').doc(uid).set({
+            accountDeleted: false,
+            tracker: previousTrackerState,
+            updatedAt: restoredAt
+          });
+          deletionMarkerWritten = false;
+          state = previousTrackerState;
+          writeLocal();
+          if (currentUser?.uid === uid && !unsubscribeCloud) attachCloudListener(user);
+          throw new Error(authError.code === 'auth/requires-recent-login'
+            ? 'Firebase still requires a fresh sign-in. Your data has been restored; sign in again and retry account deletion.'
+            : `Account deletion did not finish, so your tracker data was restored: ${authError.message || authError.code || 'Firebase error'}`);
+        }
+        clearLocalTrackerCopies(uid);
+        sessionStorage.removeItem(PENDING_DELETE_KEY);
+        closeDeleteConfirm();
+        closeAccountSettings();
+        state = emptyState();
+        activeStorageKey = GUEST_KEY;
+        writeLocal();
+        renderAll();
+        setSync('local', 'Saved on this device');
+        toast('Your Daymark account has been deleted.');
+      } catch (error) {
+        console.error('Account deletion failed:', error);
+        if (currentUser?.uid === uid && !unsubscribeCloud) attachCloudListener(user);
+        if (!deletionMarkerWritten && currentUser?.uid === uid && hadPendingCloudChanges) cloudDirty = true;
+        throw error;
+      } finally {
+        accountActionBusy = false;
+        if (cloudDirty && currentUser && navigator.onLine) scheduleCloudSave();
+        $('confirmDeleteAccountBtn').disabled = false;
+        $('confirmDeleteAccountBtn').textContent = 'Permanently delete account';
+      }
+    }
+
+    function openDeleteAccountConfirmation() {
+      if (!currentUser) return;
+      const providers = (currentUser.providerData || []).map(item => item.providerId);
+      const needsPassword = providers.includes('password');
+      $('deletePasswordWrap').hidden = !needsPassword;
+      $('deleteAccountPassword').required = needsPassword;
+      $('deleteAccountPassword').value = '';
+      $('deleteConfirmWord').value = '';
+      $('deleteConfirmError').textContent = '';
+      closeAccountSettings();
+      $('deleteConfirmModal').classList.add('show');
+      $('deleteConfirmWord').focus();
+    }
+
+    $('settingsBtn').addEventListener('click', openAccountSettings);
+    $('closeAccountSettingsBtn').addEventListener('click', closeAccountSettings);
+    $('accountSettingsModal').addEventListener('click', event => { if (event.target === $('accountSettingsModal')) closeAccountSettings(); });
+    $('openResetConfirmBtn').addEventListener('click', () => {
+      $('resetConfirmWord').value = '';
+      $('resetConfirmError').textContent = '';
+      closeAccountSettings();
+      $('resetConfirmModal').classList.add('show');
+      $('resetConfirmWord').focus();
+    });
+    $('cancelResetBtn').addEventListener('click', () => { closeResetConfirm(); openAccountSettings(); });
+    $('resetConfirmModal').addEventListener('click', event => { if (event.target === $('resetConfirmModal')) closeResetConfirm(); });
+    $('resetConfirmForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      if ($('resetConfirmWord').value.trim() !== 'RESET') {
+        $('resetConfirmError').textContent = 'Type RESET exactly to confirm this action.';
+        return;
+      }
+      await resetTrackerData();
+    });
+    $('openDeleteConfirmBtn').addEventListener('click', openDeleteAccountConfirmation);
+    $('cancelDeleteAccountBtn').addEventListener('click', () => { closeDeleteConfirm(); openAccountSettings(); });
+    $('deleteConfirmModal').addEventListener('click', event => { if (event.target === $('deleteConfirmModal')) closeDeleteConfirm(); });
+    $('deleteConfirmForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      $('deleteConfirmError').textContent = '';
+      if (!currentUser) {
+        $('deleteConfirmError').textContent = 'Sign in again before deleting an account.';
+        return;
+      }
+      if ($('deleteConfirmWord').value.trim() !== 'DELETE') {
+        $('deleteConfirmError').textContent = 'Type DELETE exactly to confirm this permanent action.';
+        return;
+      }
+      const user = currentUser;
+      const providers = (user.providerData || []).map(item => item.providerId);
+      try {
+        if (providers.includes('password')) {
+          const password = $('deleteAccountPassword').value;
+          if (!password) throw new Error('Enter your current password to verify your identity.');
+          const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+          await user.reauthenticateWithCredential(credential);
+          await completeAccountDeletion(user);
+        } else if (providers.includes('google.com')) {
+          const provider = new firebase.auth.GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: 'select_account' });
+          const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          if (mobile) {
+            sessionStorage.setItem(PENDING_DELETE_KEY, user.uid);
+            $('confirmDeleteAccountBtn').disabled = true;
+            $('confirmDeleteAccountBtn').textContent = 'Verifying with Google…';
+            await user.reauthenticateWithRedirect(provider);
+            return;
+          }
+          await user.reauthenticateWithPopup(provider);
+          await completeAccountDeletion(user);
+        } else {
+          throw new Error('This sign-in provider is not supported for in-app reauthentication yet.');
+        }
+      } catch (error) {
+        console.error('Account deletion request failed:', error);
+        const messages = {
+          'auth/wrong-password': 'The password is incorrect. Try again.',
+          'auth/invalid-credential': 'The password or sign-in verification is incorrect. Try again.',
+          'auth/popup-closed-by-user': 'Google verification was cancelled. Your account was not deleted.',
+          'auth/popup-blocked': 'The browser blocked the Google verification window. Allow popups and retry.',
+          'auth/network-request-failed': 'Network error. Your account deletion could not be completed.',
+          'auth/requires-recent-login': 'Firebase requires a fresh sign-in. Sign out, sign in again, and retry.'
+        };
+        $('deleteConfirmError').textContent = messages[error.code] || error.message || 'Could not delete the account. Please try again.';
+      } finally {
+        if ($('deleteConfirmModal').classList.contains('show')) {
+          $('confirmDeleteAccountBtn').disabled = false;
+          $('confirmDeleteAccountBtn').textContent = 'Permanently delete account';
+        }
+      }
+    });
 
     // Email/password auth is deliberately separate from the old Google popup/redirect flow.
     function openAuth() { $('authModal').classList.add('show'); $('authError').textContent = ''; $('authEmail').focus(); }
@@ -2055,14 +2444,38 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         auth = firebase.auth(); firestore = firebase.firestore();
         await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-        try { await auth.getRedirectResult(); }
+        let redirectResult = null;
+        try { redirectResult = await auth.getRedirectResult(); }
         catch (error) {
-          console.error('Google redirect sign-in failed:', error);
-          const redirectMessages = {
-            'auth/unauthorized-domain': 'Add this website to Firebase Authentication → Settings → Authorized domains.',
-            'auth/operation-not-allowed': 'Enable Google sign-in in Firebase Authentication → Sign-in method.'
-          };
-          $('authError').textContent = redirectMessages[error.code] || error.message || 'Google sign-in could not be completed.';
+          console.error('Google redirect flow failed:', error);
+          const pendingUid = sessionStorage.getItem(PENDING_DELETE_KEY);
+          if (pendingUid) {
+            sessionStorage.removeItem(PENDING_DELETE_KEY);
+            $('deleteConfirmError').textContent = error.message || 'Google verification failed. Your account was not deleted.';
+            $('deleteConfirmModal').classList.add('show');
+          } else {
+            const redirectMessages = {
+              'auth/unauthorized-domain': 'Add this website to Firebase Authentication → Settings → Authorized domains.',
+              'auth/operation-not-allowed': 'Enable Google sign-in in Firebase Authentication → Sign-in method.'
+            };
+            $('authError').textContent = redirectMessages[error.code] || error.message || 'Google sign-in could not be completed.';
+          }
+        }
+        const pendingDeleteUid = sessionStorage.getItem(PENDING_DELETE_KEY);
+        if (pendingDeleteUid) {
+          sessionStorage.removeItem(PENDING_DELETE_KEY);
+          const verifiedUser = auth.currentUser;
+          if (redirectResult?.user && verifiedUser?.uid === pendingDeleteUid) {
+            try { await completeAccountDeletion(verifiedUser); }
+            catch (error) {
+              console.error('Redirect account deletion failed:', error);
+              $('deleteConfirmError').textContent = error.message || 'Account deletion could not be completed.';
+              $('deleteConfirmModal').classList.add('show');
+            }
+          } else {
+            $('deleteConfirmError').textContent = 'Google verification did not complete. Your account was not deleted.';
+            $('deleteConfirmModal').classList.add('show');
+          }
         }
         auth.onAuthStateChanged(async (user) => {
           if (unsubscribeCloud) { unsubscribeCloud(); unsubscribeCloud = null; }
