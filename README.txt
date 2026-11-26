@@ -82,7 +82,7 @@ PART E — PREPARE FIREBASE HOSTING
 1. Open Firebase Console → Build → Hosting in the NEW Daymark project.
 2. Click Get started and follow the initial setup if prompted.
 3. Firebase's default site URL will normally be:
-   https://YOUR_DAYMARK_PROJECT_ID.web.app
+   https://daymark-2026.web.app/, https://daymark-2026.firebaseapp.com/
 
 PART F — DEPLOY FROM WINDOWS (SAME GENERAL METHOD AS YOUR OLD SITE)
 --------------------------------------------------------------------
@@ -113,7 +113,7 @@ After the first Hosting deploy:
 
 PART H — TEST LOGIN AND CROSS-DEVICE SYNC
 -----------------------------------------
-1. Open https://YOUR_DAYMARK_PROJECT_ID.web.app
+1. Open https://daymark-2026.web.app/, https://daymark-2026.firebaseapp.com/
 2. Test Create account with email/password.
 3. Log out and test Continue with Google.
 4. Add a task/checkpoint on one device.
