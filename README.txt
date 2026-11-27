@@ -1,5 +1,6 @@
 DAYMARK — NEW, SEPARATE FIREBASE PROJECT
 ========================================
+https://daymark-2026.firebaseapp.com/
 
 This package is prepared for a NEW Firebase project just for Daymark.
 It does NOT use the old DSA Tracker Firebase project.
